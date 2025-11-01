@@ -25,4 +25,5 @@ __recovery/
 *.lib
 *.rar
 ConsumoApiAgilleControl/Win32
+Tributos/
 *.bat
