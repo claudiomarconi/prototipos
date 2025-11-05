@@ -14,7 +14,7 @@ object frmMain: TfrmMain
   PixelsPerInch = 96
   TextHeight = 13
   object Button1: TButton
-    Left = 32
+    Left = 160
     Top = 24
     Width = 75
     Height = 25
@@ -36,13 +36,22 @@ object frmMain: TfrmMain
     TitleFont.Style = []
   end
   object Button2: TButton
-    Left = 160
+    Left = 280
+    Top = 24
+    Width = 137
+    Height = 25
+    Caption = 'Endpoint - Envio vendas'
+    TabOrder = 2
+    OnClick = Button2Click
+  end
+  object Button3: TButton
+    Left = 32
     Top = 24
     Width = 75
     Height = 25
-    Caption = 'Button2'
-    TabOrder = 2
-    OnClick = Button2Click
+    Caption = 'Conectar'
+    TabOrder = 3
+    OnClick = Button3Click
   end
   object dsoProdutosPDV: TDataSource
     DataSet = mtProdutos

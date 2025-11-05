@@ -44,6 +44,7 @@ uses
   , mormot.core.json
   , mormot.core.text
   , mormot.core.data
+  , mormot.core.datetime
 
   , NotaFiscalOrm
 
@@ -215,6 +216,14 @@ type
       DtHora_Venda: RawUtf8;
   end;
 
+  TParcelaAgille = packed record
+      Cod_Recebimento: Integer;
+      Descricao: RawUtf8;
+      Valor: Double;
+      DataParcelas: RawUtf8;
+      NumeroParcelas: Integer;
+  end;
+
   TVendaAgille = packed record
     Cod_Entidade: RawUtf8;
     Cod_Pedido: RawUtf8;
@@ -241,9 +250,9 @@ type
     Nome: RawUtf8;
     Descricao_Pedido: RawUtf8;
     Produtos: array of TProdutoAgille;
-
+    Parcelas: array of TParcelaAgille;
     //tributos: array of TTributoItem; // (array) - Array de retorno com todos os parâmetros tributários de cada item solicitado  end;
-  end;
+	end;
 
 
   TfrmMain = class(TForm)
@@ -263,13 +272,19 @@ type
     mtProdutostx_icms_padrao: TCurrencyField;
     mtProdutos: TFDMemTable;
     Button2: TButton;
+    Button3: TButton;
     procedure Button1Click(Sender: TObject);
     procedure Button2Click(Sender: TObject);
+    procedure Button3Click(Sender: TObject);
   private
     { Private declarations }
     FClient: TRestHttpClient;
+    FModel: TSqlModel;
     function ProcessarNotaFiscal(const AVendaAgille: TVendaAgille): TOrmNotaFiscal;
-    procedure ProcessarItensNotaFiscal(const AVendaAgille: TVendaAgille);
+    procedure ProcessarItensNotaFiscal(const AVendaAgille: TVendaAgille;
+      ANotaFiscal: TOrmNotaFiscal);
+    procedure ProcessarParcelasNotaFiscal(const AVendaAgille: TVendaAgille);
+    procedure GravarNotaFiscal(const AVendaAgille: TVendaAgille);
 
   public
     { Public declarations }
@@ -284,15 +299,17 @@ type
            + 'Nu_NF: RawUtf8; Serie_NF: RawUtf8; Modelo_NF: RawUtf8; Tipo_Classificacao: Integer; Tipo_Classificacao_Nome: RawUtf8; Dt_Venda: RawUtf8; '
            + 'Vlr_TxEntrega: Double; Vlr_Couvert: Double; Vlr_DezPorCento: Double; Vlr_Desconto: Double; Valor: Double; status_receita_agille: Integer; '
            + 'Nome_Vendedor: RawUtf8; Dt_Pedido: RawUtf8; Cod_Cliente: Integer; CPFCNPJ: RawUtf8; Nome: RawUtf8; Descricao_Pedido: RawUtf8; '
-           + 'Produtos: array of TProdutoAgille; ';
-var
+           + 'Produtos: array of TProdutoAgille; Parcelas: array of TParcelaAgille; ';
+		   __ParcelaAgille = 'Cod_Recebimento: Integer; Descricao: RawUtf8; Valor: Double; DataParcelas: RawUtf8; NumeroParcelas: Integer; ';
+		   var
   frmMain: TfrmMain;
   JsonAgille: RawUtf8;
 
 implementation
 uses
+  RestModel,
   EmpresaOrm, GrupoEmpresaOrm, ClienteOrm, ItemNotaFiscalOrm,
-  ProdutoOrm,
+  ProdutoOrm, MoviFinanceiroOrm, FormaFinanceiraOrm,
   helper.ormref;
 {$R *.dfm}
 
@@ -304,7 +321,6 @@ var
 begin
 
 
-  FClient := TRestHttpClient.Create('localhost', '8888',  TOrmModel.Create([]));
 
   if FClient.SetUser('cmarcony', 'synopse') then
   begin
@@ -361,9 +377,38 @@ begin
   Content := StringFromFile('..\..\venda-agille.json');
   RecordLoadJsonInPlace(VendaAgille, pointer(Content), TypeInfo(TVendaAgille));
 
+  GravarNotaFiscal(VendaAgille);
 end;
 
-procedure TfrmMain.ProcessarItensNotaFiscal(const AVendaAgille: TVendaAgille);
+procedure TfrmMain.Button3Click(Sender: TObject);
+begin
+  FModel := DataModel;
+
+  FClient := TRestHttpClient.Create('notei5', '8888',  FModel);
+end;
+
+procedure TfrmMain.GravarNotaFiscal(const AVendaAgille: TVendaAgille);
+var
+  NotaFiscal: TOrmNotaFiscal;
+begin
+
+  NotaFiscal := ProcessarNotaFiscal(AVendaAgille);
+
+  FClient.Orm.TransactionBegin(TOrmNotaFiscal);
+  try
+    ProcessarItensNotaFiscal(AVendaAgille, NotaFiscal);
+    ProcessarParcelasNotaFiscal(AVendaAgille);
+    FClient.Orm.Commit;
+  except
+    on E: Exception do
+    begin
+      FClient.Orm.RollBack;
+    end;
+  end;
+end;
+
+procedure TfrmMain.ProcessarItensNotaFiscal(const AVendaAgille: TVendaAgille;
+  ANotaFiscal: TOrmNotaFiscal);
 var
   Item: TOrmItemNotaFiscal;
   ProdutoAgille: TProdutoAgille;
@@ -374,12 +419,22 @@ begin
   for ProdutoAgille in AVendaAgille.Produtos do
   begin
     oProduto := TOrmRefHelper.Ref<TOrmProduto>(ProdutoAgille.Cod_Produto, ProdutoAF );
-    Item.ds_produto := ProdutoAgille.Descricao;
-    Item.vl_unitario := ProdutoAgille.Vlr_Unitario;
-    Item.qt_movimento := ProdutoAgille.Qtde;
-    item.vl_desconto := ProdutoAgille.Vlr_Desconto;
-    item.dt_movimento := ProdutoAgille.DtHora_Venda;
-    Item.tp_movimento := 'S';
+    Item := TOrmItemNotaFiscal.Create;
+
+    try
+      Item.ds_produto := ProdutoAgille.Descricao;
+      Item.id_nota_fiscal := ANotaFiscal.AsTOrm;
+      Item.vl_unitario := ProdutoAgille.Vlr_Unitario;
+      Item.qt_movimento := ProdutoAgille.Qtde;
+      item.vl_desconto := ProdutoAgille.Vlr_Desconto;
+      item.dt_movimento := Iso8601ToDateTime(ProdutoAgille.DtHora_Venda); // StrToDate(
+      Item.tp_movimento := 'S';
+      Item.qt_movimento := ProdutoAgille.Qtde;
+
+      FClient.Orm.Add(Item, True);
+    finally
+      Item.Free;
+    end;
   end;
 
 end;
@@ -387,7 +442,6 @@ end;
 function TfrmMain.ProcessarNotaFiscal(const AVendaAgille: TVendaAgille): TOrmNotaFiscal;
 var
   NotaFiscal: TOrmNotaFiscal;
-  VendaAgille: TVendaAgille;
 
   oEmpresa: TOrmEmpresa;
   oGrupoEmpresa: TOrmGrupoEmpresa;
@@ -399,33 +453,62 @@ begin
 
   oEmpresa      := TOrmRefHelper.Ref<TOrmEmpresa>(2, EmpresaAF);
   oGrupoEmpresa := TOrmRefHelper.Ref<TOrmGrupoEmpresa>(2, GrupoEmpresaAF);
-  oClient       := TOrmRefHelper.Ref<TOrmCliente>(VendaAgille.Cod_Cliente, GrupoEmpresaAF);
+  oClient       := TOrmRefHelper.Ref<TOrmCliente>(AVendaAgille.Cod_Cliente, GrupoEmpresaAF);
 
-  //VendaAgille.Cod_Entidade
-  //VendaAgille.Cod_Pedido
+  //AVendaAgille.Cod_Entidade
+  //AVendaAgille.Cod_Pedido
 
   NotaFiscal.id_grupo_empresa := oGrupoEmpresa.AsTOrm;
   NotaFiscal.id_empresa       := oEmpresa.AsTOrm;
   NotaFiscal.id_cliente       := oClient.AsTOrm;
 
   NotaFiscal.tp_nota := 'S';
-  NotaFiscal.nu_serie := VendaAgille.Serie_NF;
-  NotaFiscal.nu_modelo := VendaAgille.Modelo_NF;
-  NotaFiscal.nu_nota := Utf8ToInteger(VendaAgille.Nu_NF);
-  //VendaAgille.Tipo_Classificacao
-  //VendaAgille.Tipo_Classificacao_Nome
-  NotaFiscal.dt_entrada_saida := StrToDate(VendaAgille.Dt_Venda);
-  //VendaAgille.Vlr_TxEntrega
-  //VendaAgille.Vlr_Couvert
-  NotaFiscal.vl_desconto := VendaAgille.Vlr_Desconto;
-  NotaFiscal.vl_nota := VendaAgille.Valor;
-  //VendaAgille.status_receita_agille
-  //VendaAgille.Nome_Vendedor
-  //VendaAgille.CPFCNPJ
-  //VendaAgille.Nome
-  NotaFiscal.ds_observacao := VendaAgille.Descricao_Pedido;
+  NotaFiscal.nu_serie := AVendaAgille.Serie_NF;
+  NotaFiscal.nu_modelo := AVendaAgille.Modelo_NF;
+  NotaFiscal.nu_nota := Utf8ToInteger(AVendaAgille.Nu_NF);
+  //AVendaAgille.Tipo_Classificacao
+  //AVendaAgille.Tipo_Classificacao_Nome
+  NotaFiscal.dt_entrada_saida := StrToDate(AVendaAgille.Dt_Venda); // StrToDate(
+  //AVendaAgille.Vlr_TxEntrega
+  //AVendaAgille.Vlr_Couvert
+  NotaFiscal.vl_desconto := AVendaAgille.Vlr_Desconto;
+  NotaFiscal.vl_nota := AVendaAgille.Valor;
+  //AVendaAgille.status_receita_agille
+  //AVendaAgille.Nome_Vendedor
+  //AVendaAgille.CPFCNPJ
+  //AVendaAgille.Nome
+  NotaFiscal.ds_observacao := AVendaAgille.Descricao_Pedido;
+
+  FClient.Orm.Add(NotaFiscal, True);
 
   Result := NotaFiscal;
+
+end;
+
+procedure TfrmMain.ProcessarParcelasNotaFiscal(
+  const AVendaAgille: TVendaAgille);
+var
+  Financeiro: TOrmMoviFinanceiro;
+  oFormaFinanceira: TOrmFormaFinanceira;
+  FormaFinanceiraAF: IAutoFree;
+begin
+  for var Parcela in AVendaAgille.Parcelas do
+  begin
+    Financeiro := TOrmMoviFinanceiro.Create;
+
+    oFormaFinanceira      := TOrmRefHelper.Ref<TOrmFormaFinanceira>(Parcela.Cod_Recebimento, FormaFinanceiraAF);
+
+    Financeiro.id_formaFinanceira := oFormaFinanceira.AsTOrm;
+    Financeiro.vl_movimento := Parcela.Valor;
+    Financeiro.nu_parcela := Parcela.NumeroParcelas;
+    Financeiro.ds_historico := Parcela.Descricao;
+
+    Financeiro.dt_movimento := StrToDate(Parcela.DataParcelas);
+    FClient.Orm.Add(Financeiro, True);
+
+  end;
+  //Siafw -> sem coisas da reforma
+
 
 end;
 
@@ -436,4 +519,5 @@ initialization
 
   TRttiJson.RegisterFromText(TypeInfo(TVendaAgille)  , __TVendaAgille  , [jpoIgnoreUnknownProperty], [woHumanReadable]);
 
+  TRttiJson.RegisterFromText(TypeInfo(TParcelaAgille), __ParcelaAgille , [jpoIgnoreUnknownProperty], [woHumanReadable]);
 end.

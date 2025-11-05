@@ -105,23 +105,47 @@
             <Form>frmMain</Form>
             <FormType>dfm</FormType>
         </DCCReference>
-        <DCCReference Include="C:\Desenv\AgilleControl\src\Models\BaseOrm.pas"/>
-        <DCCReference Include="C:\Desenv\AgilleControl\src\Models\ClienteOrm.pas"/>
-        <DCCReference Include="C:\Desenv\AgilleControl\src\Models\EmpresaOrm.pas"/>
-        <DCCReference Include="C:\Desenv\AgilleControl\src\Models\FornecedorOrm.pas"/>
-        <DCCReference Include="C:\Desenv\AgilleControl\src\Models\GrupoEmpresaOrm.pas"/>
-        <DCCReference Include="C:\Desenv\AgilleControl\src\Models\TipoBaixaEstoqueOrm.pas"/>
-        <DCCReference Include="C:\Desenv\AgilleControl\src\Models\TransportadoraOrm.pas"/>
-        <DCCReference Include="C:\Desenv\AgilleControl\src\Models\NotaFiscalOrm.pas"/>
-        <DCCReference Include="C:\Desenv\AgilleControl\src\Models\PrefeituraOrm.pas"/>
-        <DCCReference Include="C:\Desenv\AgilleControl\src\common\Agille.Types.pas"/>
-        <DCCReference Include="C:\Desenv\AgilleControl\src\common\helper.ormref.pas"/>
-        <DCCReference Include="C:\Desenv\AgilleControl\src\Models\ItemNotaFiscalOrm.pas"/>
-        <DCCReference Include="C:\Desenv\AgilleControl\src\Models\ProdutoOrm.pas"/>
-        <DCCReference Include="C:\Desenv\AgilleControl\src\Models\GrupoImpostoOrm.pas"/>
-        <DCCReference Include="C:\Desenv\AgilleControl\src\Models\CfopOrm.pas"/>
-        <DCCReference Include="C:\Desenv\AgilleControl\src\Models\CstOrm.pas"/>
-        <DCCReference Include="C:\Desenv\AgilleControl\src\Models\GrupoOrm.pas"/>
+        <DCCReference Include="..\..\AgilleControl\src\common\Agille.Types.pas"/>
+        <DCCReference Include="..\..\AgilleControl\src\common\helper.ormref.pas"/>
+        <DCCReference Include="..\..\AgilleControl\src\RestModel.pas"/>
+        <DCCReference Include="..\..\AgilleControl\src\Models\BaseOrm.pas"/>
+        <DCCReference Include="..\..\AgilleControl\src\Models\CestOrm.pas"/>
+        <DCCReference Include="..\..\AgilleControl\src\Models\CfopOrm.pas"/>
+        <DCCReference Include="..\..\AgilleControl\src\Models\ClienteOrm.pas"/>
+        <DCCReference Include="..\..\AgilleControl\src\Models\ContaBancariaOrm.pas"/>
+        <DCCReference Include="..\..\AgilleControl\src\Models\ContaCorrenteOrm.pas"/>
+        <DCCReference Include="..\..\AgilleControl\src\Models\CstBeneficioOrm.pas"/>
+        <DCCReference Include="..\..\AgilleControl\src\Models\CstOrm.pas"/>
+        <DCCReference Include="..\..\AgilleControl\src\Models\DocumentoBaseOrm.pas"/>
+        <DCCReference Include="..\..\AgilleControl\src\Models\DominioOrm.pas"/>
+        <DCCReference Include="..\..\AgilleControl\src\Models\DuplicataOrm.pas"/>
+        <DCCReference Include="..\..\AgilleControl\src\Models\EmpresaOrm.pas"/>
+        <DCCReference Include="..\..\AgilleControl\src\Models\EstoqueOrm.pas"/>
+        <DCCReference Include="..\..\AgilleControl\src\Models\FormaFinanceiraOrm.pas"/>
+        <DCCReference Include="..\..\AgilleControl\src\Models\FornecedorOrm.pas"/>
+        <DCCReference Include="..\..\AgilleControl\src\Models\GrupoEmpresaOrm.pas"/>
+        <DCCReference Include="..\..\AgilleControl\src\Models\GrupoImpostoOrm.pas"/>
+        <DCCReference Include="..\..\AgilleControl\src\Models\GrupoOrm.pas"/>
+        <DCCReference Include="..\..\AgilleControl\src\Models\IbptOrm.pas"/>
+        <DCCReference Include="..\..\AgilleControl\src\Models\IcmsEstadoOrm.pas"/>
+        <DCCReference Include="..\..\AgilleControl\src\Models\ItemNotaFiscalOrm.pas"/>
+        <DCCReference Include="..\..\AgilleControl\src\Models\ItemOrm.pas"/>
+        <DCCReference Include="..\..\AgilleControl\src\Models\MoviFinanceiroOrm.pas"/>
+        <DCCReference Include="..\..\AgilleControl\src\Models\MovimentoEstoqueOrm.pas"/>
+        <DCCReference Include="..\..\AgilleControl\src\Models\NcmOrm.pas"/>
+        <DCCReference Include="..\..\AgilleControl\src\Models\NotaFiscalOrm.pas"/>
+        <DCCReference Include="..\..\AgilleControl\src\Models\NotaOficinaOrm.pas"/>
+        <DCCReference Include="..\..\AgilleControl\src\Models\NotaRestauranteOrm.pas"/>
+        <DCCReference Include="..\..\AgilleControl\src\Models\PlanoContaOrm.pas"/>
+        <DCCReference Include="..\..\AgilleControl\src\Models\PrefeituraOrm.pas"/>
+        <DCCReference Include="..\..\AgilleControl\src\Models\ProdutoOrm.pas"/>
+        <DCCReference Include="..\..\AgilleControl\src\Models\Role.pas"/>
+        <DCCReference Include="..\..\AgilleControl\src\Models\SequencialOrm.pas"/>
+        <DCCReference Include="..\..\AgilleControl\src\Models\TipoBaixaEstoqueOrm.pas"/>
+        <DCCReference Include="..\..\AgilleControl\src\Models\TransportadoraOrm.pas"/>
+        <DCCReference Include="..\..\AgilleControl\src\Models\UsuarioEmpresaOrm.pas"/>
+        <DCCReference Include="..\..\AgilleControl\src\Models\UsuarioOrm.pas"/>
+        <DCCReference Include="..\..\AgilleControl\src\Models\VeiculoOrm.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>
