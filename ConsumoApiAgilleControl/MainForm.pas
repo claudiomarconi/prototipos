@@ -44,7 +44,6 @@ uses
   , mormot.core.json
   , mormot.core.text
   , mormot.core.data
-  , mormot.core.datetime
 
   , NotaFiscalOrm
 
@@ -429,7 +428,7 @@ begin
       Item.vl_unitario := ProdutoAgille.Vlr_Unitario;
       Item.qt_movimento := ProdutoAgille.Qtde;
       item.vl_desconto := ProdutoAgille.Vlr_Desconto;
-      item.dt_movimento := Iso8601ToDateTime(ProdutoAgille.DtHora_Venda); // StrToDate(
+      item.dt_movimento := StrToDateTime(ProdutoAgille.DtHora_Venda);
       Item.tp_movimento := 'S';
       Item.qt_movimento := ProdutoAgille.Qtde;
 
