@@ -392,18 +392,23 @@ var
   NotaFiscal: TOrmNotaFiscal;
 begin
 
-  NotaFiscal := ProcessarNotaFiscal(AVendaAgille);
-
+  NotaFiscal := nil;
   FClient.Orm.TransactionBegin(TOrmNotaFiscal);
   try
-    ProcessarItensNotaFiscal(AVendaAgille, NotaFiscal);
-    ProcessarParcelasNotaFiscal(AVendaAgille);
-    FClient.Orm.Commit;
-  except
-    on E: Exception do
-    begin
-      FClient.Orm.RollBack;
+    try
+      NotaFiscal := ProcessarNotaFiscal(AVendaAgille);
+      ProcessarItensNotaFiscal(AVendaAgille, NotaFiscal);
+      ProcessarParcelasNotaFiscal(AVendaAgille);
+      FClient.Orm.Commit;
+    except
+      on E: Exception do
+      begin
+        FClient.Orm.RollBack;
+        raise;
+      end;
     end;
+  finally
+    NotaFiscal.Free;
   end;
 end;
 
