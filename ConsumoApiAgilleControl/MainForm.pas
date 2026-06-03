@@ -391,11 +391,12 @@ procedure TfrmMain.GravarNotaFiscal(const AVendaAgille: TVendaAgille);
 var
   NotaFiscal: TOrmNotaFiscal;
 begin
+  NotaFiscal := nil;
 
-  NotaFiscal := ProcessarNotaFiscal(AVendaAgille);
-
-  FClient.Orm.TransactionBegin(TOrmNotaFiscal);
+  if not FClient.Orm.TransactionBegin(TOrmNotaFiscal) then
+    raise Exception.Create('Nao foi possivel iniciar a transacao da nota fiscal');
   try
+    NotaFiscal := ProcessarNotaFiscal(AVendaAgille);
     ProcessarItensNotaFiscal(AVendaAgille, NotaFiscal);
     ProcessarParcelasNotaFiscal(AVendaAgille);
     FClient.Orm.Commit;
@@ -403,7 +404,10 @@ begin
     on E: Exception do
     begin
       FClient.Orm.RollBack;
+      raise;
     end;
+  finally
+    NotaFiscal.Free;
   end;
 end;
 
@@ -450,38 +454,43 @@ var
   EmpresaAF, GrupoEmpresaAF, ClienteAF: IAutoFree;
 begin
   NotaFiscal := TOrmNotaFiscal.Create;
+  try
 
-  oEmpresa      := TOrmRefHelper.Ref<TOrmEmpresa>(2, EmpresaAF);
-  oGrupoEmpresa := TOrmRefHelper.Ref<TOrmGrupoEmpresa>(2, GrupoEmpresaAF);
-  oClient       := TOrmRefHelper.Ref<TOrmCliente>(AVendaAgille.Cod_Cliente, GrupoEmpresaAF);
+    oEmpresa      := TOrmRefHelper.Ref<TOrmEmpresa>(2, EmpresaAF);
+    oGrupoEmpresa := TOrmRefHelper.Ref<TOrmGrupoEmpresa>(2, GrupoEmpresaAF);
+    oClient       := TOrmRefHelper.Ref<TOrmCliente>(AVendaAgille.Cod_Cliente, ClienteAF);
 
-  //AVendaAgille.Cod_Entidade
-  //AVendaAgille.Cod_Pedido
+    //AVendaAgille.Cod_Entidade
+    //AVendaAgille.Cod_Pedido
 
-  NotaFiscal.id_grupo_empresa := oGrupoEmpresa.AsTOrm;
-  NotaFiscal.id_empresa       := oEmpresa.AsTOrm;
-  NotaFiscal.id_cliente       := oClient.AsTOrm;
+    NotaFiscal.id_grupo_empresa := oGrupoEmpresa.AsTOrm;
+    NotaFiscal.id_empresa       := oEmpresa.AsTOrm;
+    NotaFiscal.id_cliente       := oClient.AsTOrm;
 
-  NotaFiscal.tp_nota := 'S';
-  NotaFiscal.nu_serie := AVendaAgille.Serie_NF;
-  NotaFiscal.nu_modelo := AVendaAgille.Modelo_NF;
-  NotaFiscal.nu_nota := Utf8ToInteger(AVendaAgille.Nu_NF);
-  //AVendaAgille.Tipo_Classificacao
-  //AVendaAgille.Tipo_Classificacao_Nome
-  NotaFiscal.dt_entrada_saida := StrToDate(AVendaAgille.Dt_Venda); // StrToDate(
-  //AVendaAgille.Vlr_TxEntrega
-  //AVendaAgille.Vlr_Couvert
-  NotaFiscal.vl_desconto := AVendaAgille.Vlr_Desconto;
-  NotaFiscal.vl_nota := AVendaAgille.Valor;
-  //AVendaAgille.status_receita_agille
-  //AVendaAgille.Nome_Vendedor
-  //AVendaAgille.CPFCNPJ
-  //AVendaAgille.Nome
-  NotaFiscal.ds_observacao := AVendaAgille.Descricao_Pedido;
+    NotaFiscal.tp_nota := 'S';
+    NotaFiscal.nu_serie := AVendaAgille.Serie_NF;
+    NotaFiscal.nu_modelo := AVendaAgille.Modelo_NF;
+    NotaFiscal.nu_nota := Utf8ToInteger(AVendaAgille.Nu_NF);
+    //AVendaAgille.Tipo_Classificacao
+    //AVendaAgille.Tipo_Classificacao_Nome
+    NotaFiscal.dt_entrada_saida := StrToDate(AVendaAgille.Dt_Venda); // StrToDate(
+    //AVendaAgille.Vlr_TxEntrega
+    //AVendaAgille.Vlr_Couvert
+    NotaFiscal.vl_desconto := AVendaAgille.Vlr_Desconto;
+    NotaFiscal.vl_nota := AVendaAgille.Valor;
+    //AVendaAgille.status_receita_agille
+    //AVendaAgille.Nome_Vendedor
+    //AVendaAgille.CPFCNPJ
+    //AVendaAgille.Nome
+    NotaFiscal.ds_observacao := AVendaAgille.Descricao_Pedido;
 
-  FClient.Orm.Add(NotaFiscal, True);
+    FClient.Orm.Add(NotaFiscal, True);
 
-  Result := NotaFiscal;
+    Result := NotaFiscal;
+  except
+    NotaFiscal.Free;
+    raise;
+  end;
 
 end;
 
@@ -495,16 +504,20 @@ begin
   for var Parcela in AVendaAgille.Parcelas do
   begin
     Financeiro := TOrmMoviFinanceiro.Create;
+    try
 
-    oFormaFinanceira      := TOrmRefHelper.Ref<TOrmFormaFinanceira>(Parcela.Cod_Recebimento, FormaFinanceiraAF);
+      oFormaFinanceira      := TOrmRefHelper.Ref<TOrmFormaFinanceira>(Parcela.Cod_Recebimento, FormaFinanceiraAF);
 
-    Financeiro.id_formaFinanceira := oFormaFinanceira.AsTOrm;
-    Financeiro.vl_movimento := Parcela.Valor;
-    Financeiro.nu_parcela := Parcela.NumeroParcelas;
-    Financeiro.ds_historico := Parcela.Descricao;
+      Financeiro.id_formaFinanceira := oFormaFinanceira.AsTOrm;
+      Financeiro.vl_movimento := Parcela.Valor;
+      Financeiro.nu_parcela := Parcela.NumeroParcelas;
+      Financeiro.ds_historico := Parcela.Descricao;
 
-    Financeiro.dt_movimento := StrToDate(Parcela.DataParcelas);
-    FClient.Orm.Add(Financeiro, True);
+      Financeiro.dt_movimento := StrToDate(Parcela.DataParcelas);
+      FClient.Orm.Add(Financeiro, True);
+    finally
+      Financeiro.Free;
+    end;
 
   end;
   //Siafw -> sem coisas da reforma
