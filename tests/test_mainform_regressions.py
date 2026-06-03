@@ -6,7 +6,7 @@ SOURCE = Path(__file__).resolve().parents[1] / "ConsumoApiAgilleControl" / "Main
 
 
 def _source_text() -> str:
-    return SOURCE.read_text(encoding="utf-8")
+    return SOURCE.read_text(encoding="latin-1")
 
 
 class MainFormRegressionTests(unittest.TestCase):
