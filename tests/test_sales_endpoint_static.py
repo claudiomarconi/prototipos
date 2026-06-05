@@ -7,7 +7,7 @@ SOURCE = Path(__file__).resolve().parents[1] / "ConsumoApiAgilleControl" / "Main
 
 
 def _method_body(method_name: str) -> str:
-    source = SOURCE.read_text(encoding="utf-8")
+    source = SOURCE.read_text(encoding="latin-1")
     pattern = re.compile(
         rf"^(procedure|function)\s+TfrmMain\.{re.escape(method_name)}\b.*?"
         r"(?=^(procedure|function)\s+TfrmMain\.|\binitialization\b)",
