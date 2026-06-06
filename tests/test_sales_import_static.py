@@ -20,7 +20,7 @@ def method_body(source: str, name: str) -> str:
 class SalesImportStaticTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.source = SOURCE.read_text(encoding="utf-8")
+        cls.source = SOURCE.read_text(encoding="cp1252")
 
     def test_sales_import_is_wrapped_in_transaction(self) -> None:
         body = method_body(self.source, "GravarNotaFiscal")
