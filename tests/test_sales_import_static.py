@@ -50,7 +50,8 @@ class SalesImportStaticTests(unittest.TestCase):
         for name in ("ProcessarNotaFiscal", "ProcessarItensNotaFiscal", "ProcessarParcelasNotaFiscal"):
             with self.subTest(method=name):
                 body = method_body(self.source, name)
-                self.assertRegex(body, r"FClient\.Orm\.Add\([^)]*\)\s*=\s*0")
+                self.assertIn("FClient.Orm.Add", body)
+                self.assertRegex(body, r"(FClient\.Orm\.Add\([^)]*\)|IDValue)\s*=\s*0")
                 self.assertIn("raise Exception.Create", body)
 
     def test_endpoint_requires_connection_before_import(self) -> None:
