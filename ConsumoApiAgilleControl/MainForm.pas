@@ -44,7 +44,6 @@ uses
   , mormot.core.json
   , mormot.core.text
   , mormot.core.data
-  , mormot.core.datetime
 
   , NotaFiscalOrm
 
@@ -280,6 +279,7 @@ type
     { Private declarations }
     FClient: TRestHttpClient;
     FModel: TSqlModel;
+    procedure EnsureClientAuthenticated;
     function ProcessarNotaFiscal(const AVendaAgille: TVendaAgille): TOrmNotaFiscal;
     procedure ProcessarItensNotaFiscal(const AVendaAgille: TVendaAgille;
       ANotaFiscal: TOrmNotaFiscal);
@@ -321,50 +321,48 @@ var
 begin
 
 
+  EnsureClientAuthenticated;
 
-  if FClient.SetUser('cmarcony', 'synopse') then
-  begin
-    mtProdutos.Active := false;
-    mtProdutos.Active := true;
+  mtProdutos.Active := false;
+  mtProdutos.Active := true;
 
-    SqlSelect := 'SELECT produto.RowID id, ds_produto, produto.ds_descricao, co_ean, co_ncm, '
-      + 'tx_icms_padrao, co_cest, vl_venda, vl_compra, nu_cfop, co_cst '
-      + 'FROM produto '
-      + 'LEFT JOIN grupoImposto ON grupoimposto.RowID = produto.id_grupo_imposto '
-      + 'LEFT JOIN cfop ON cfop.RowID = grupoimposto.id_cfop '
-      + 'LEFT JOIN cst ON cst.RowID  = grupoimposto.id_cst '
-      + 'WHERE fl_usa_pdv = ? and produto.id_grupo_empresa = ? ';
+  SqlSelect := 'SELECT produto.RowID id, ds_produto, produto.ds_descricao, co_ean, co_ncm, '
+    + 'tx_icms_padrao, co_cest, vl_venda, vl_compra, nu_cfop, co_cst '
+    + 'FROM produto '
+    + 'LEFT JOIN grupoImposto ON grupoimposto.RowID = produto.id_grupo_imposto '
+    + 'LEFT JOIN cfop ON cfop.RowID = grupoimposto.id_cfop '
+    + 'LEFT JOIN cst ON cst.RowID  = grupoimposto.id_cst '
+    + 'WHERE fl_usa_pdv = ? and produto.id_grupo_empresa = ? ';
 
-    flagPDV := 1;
-    IdGrupoEmpresa := 3;
+  flagPDV := 1;
+  IdGrupoEmpresa := 3;
 
-    TableProduto := FClient.ExecuteList([], FormatSql(SqlSelect, [], [flagPDV, IdGrupoEmpresa]));
-    try
-      while TableProduto.Step do
-      begin
-        mtProdutos.Insert;
+  TableProduto := FClient.ExecuteList([], FormatSql(SqlSelect, [], [flagPDV, IdGrupoEmpresa]));
+  try
+    while TableProduto.Step do
+    begin
+      mtProdutos.Insert;
 
-        mtProdutos.FieldByName('id').AsInteger := TableProduto.FieldAsInteger('id');
+      mtProdutos.FieldByName('id').AsInteger := TableProduto.FieldAsInteger('id');
 
-        mtProdutos.FieldByName('ds_produto').AsString := TableProduto.FieldAsString('ds_produto');
-        mtProdutos.FieldByName('ds_descricao').AsString := TableProduto.FieldAsString('ds_descricao');
-        mtProdutos.FieldByName('co_ean').AsString := TableProduto.FieldAsString('co_ean');
-        mtProdutos.FieldByName('co_ncm').AsString := TableProduto.FieldAsString('co_ncm');
-        mtProdutos.FieldByName('co_cest').AsString := TableProduto.FieldAsString('co_cest');
+      mtProdutos.FieldByName('ds_produto').AsString := TableProduto.FieldAsString('ds_produto');
+      mtProdutos.FieldByName('ds_descricao').AsString := TableProduto.FieldAsString('ds_descricao');
+      mtProdutos.FieldByName('co_ean').AsString := TableProduto.FieldAsString('co_ean');
+      mtProdutos.FieldByName('co_ncm').AsString := TableProduto.FieldAsString('co_ncm');
+      mtProdutos.FieldByName('co_cest').AsString := TableProduto.FieldAsString('co_cest');
 
-        mtProdutos.FieldByName('vl_venda').AsFloat := TableProduto.FieldAsFloat('vl_venda');
-        mtProdutos.FieldByName('vl_compra').AsFloat := TableProduto.FieldAsFloat('vl_compra');
+      mtProdutos.FieldByName('vl_venda').AsFloat := TableProduto.FieldAsFloat('vl_venda');
+      mtProdutos.FieldByName('vl_compra').AsFloat := TableProduto.FieldAsFloat('vl_compra');
 
-        mtProdutos.FieldByName('nu_cfop').AsString := TableProduto.FieldAsString('nu_cfop');
-        mtProdutos.FieldByName('co_cst').AsString := TableProduto.FieldAsString('co_cst');
+      mtProdutos.FieldByName('nu_cfop').AsString := TableProduto.FieldAsString('nu_cfop');
+      mtProdutos.FieldByName('co_cst').AsString := TableProduto.FieldAsString('co_cst');
 
-        mtProdutos.FieldByName('tx_icms_padrao').AsFloat := TableProduto.FieldAsFloat('tx_icms_padrao');
+      mtProdutos.FieldByName('tx_icms_padrao').AsFloat := TableProduto.FieldAsFloat('tx_icms_padrao');
 
-        mtProdutos.Post;
-      end;
-    finally
-      TableProduto.Free;
+      mtProdutos.Post;
     end;
+  finally
+    TableProduto.Free;
   end;
 
 end;
@@ -374,6 +372,8 @@ var
   Content: RawByteString;
   VendaAgille: TVendaAgille;
 begin
+  EnsureClientAuthenticated;
+
   Content := StringFromFile('..\..\venda-agille.json');
   RecordLoadJsonInPlace(VendaAgille, pointer(Content), TypeInfo(TVendaAgille));
 
@@ -382,28 +382,45 @@ end;
 
 procedure TfrmMain.Button3Click(Sender: TObject);
 begin
-  FModel := DataModel;
+  EnsureClientAuthenticated;
+end;
 
-  FClient := TRestHttpClient.Create('notei5', '8888',  FModel);
+procedure TfrmMain.EnsureClientAuthenticated;
+begin
+  if FClient = nil then
+  begin
+    if FModel = nil then
+      FModel := DataModel;
+
+    FClient := TRestHttpClient.Create('notei5', '8888', FModel);
+  end;
+
+  if not FClient.SetUser('cmarcony', 'synopse') then
+    raise Exception.Create('Falha ao autenticar no servidor AgilleControl.');
 end;
 
 procedure TfrmMain.GravarNotaFiscal(const AVendaAgille: TVendaAgille);
 var
   NotaFiscal: TOrmNotaFiscal;
 begin
-
-  NotaFiscal := ProcessarNotaFiscal(AVendaAgille);
+  NotaFiscal := nil;
 
   FClient.Orm.TransactionBegin(TOrmNotaFiscal);
   try
-    ProcessarItensNotaFiscal(AVendaAgille, NotaFiscal);
-    ProcessarParcelasNotaFiscal(AVendaAgille);
-    FClient.Orm.Commit;
-  except
-    on E: Exception do
-    begin
-      FClient.Orm.RollBack;
+    try
+      NotaFiscal := ProcessarNotaFiscal(AVendaAgille);
+      ProcessarItensNotaFiscal(AVendaAgille, NotaFiscal);
+      ProcessarParcelasNotaFiscal(AVendaAgille);
+      FClient.Orm.Commit;
+    except
+      on E: Exception do
+      begin
+        FClient.Orm.RollBack;
+        raise;
+      end;
     end;
+  finally
+    NotaFiscal.Free;
   end;
 end;
 
@@ -427,7 +444,7 @@ begin
       Item.vl_unitario := ProdutoAgille.Vlr_Unitario;
       Item.qt_movimento := ProdutoAgille.Qtde;
       item.vl_desconto := ProdutoAgille.Vlr_Desconto;
-      item.dt_movimento := Iso8601ToDateTime(ProdutoAgille.DtHora_Venda); // StrToDate(
+      item.dt_movimento := StrToDateTime(ProdutoAgille.DtHora_Venda);
       Item.tp_movimento := 'S';
       Item.qt_movimento := ProdutoAgille.Qtde;
 
@@ -453,7 +470,7 @@ begin
 
   oEmpresa      := TOrmRefHelper.Ref<TOrmEmpresa>(2, EmpresaAF);
   oGrupoEmpresa := TOrmRefHelper.Ref<TOrmGrupoEmpresa>(2, GrupoEmpresaAF);
-  oClient       := TOrmRefHelper.Ref<TOrmCliente>(AVendaAgille.Cod_Cliente, GrupoEmpresaAF);
+  oClient       := TOrmRefHelper.Ref<TOrmCliente>(AVendaAgille.Cod_Cliente, ClienteAF);
 
   //AVendaAgille.Cod_Entidade
   //AVendaAgille.Cod_Pedido
@@ -496,15 +513,19 @@ begin
   begin
     Financeiro := TOrmMoviFinanceiro.Create;
 
-    oFormaFinanceira      := TOrmRefHelper.Ref<TOrmFormaFinanceira>(Parcela.Cod_Recebimento, FormaFinanceiraAF);
+    try
+      oFormaFinanceira := TOrmRefHelper.Ref<TOrmFormaFinanceira>(Parcela.Cod_Recebimento, FormaFinanceiraAF);
 
-    Financeiro.id_formaFinanceira := oFormaFinanceira.AsTOrm;
-    Financeiro.vl_movimento := Parcela.Valor;
-    Financeiro.nu_parcela := Parcela.NumeroParcelas;
-    Financeiro.ds_historico := Parcela.Descricao;
+      Financeiro.id_formaFinanceira := oFormaFinanceira.AsTOrm;
+      Financeiro.vl_movimento := Parcela.Valor;
+      Financeiro.nu_parcela := Parcela.NumeroParcelas;
+      Financeiro.ds_historico := Parcela.Descricao;
 
-    Financeiro.dt_movimento := StrToDate(Parcela.DataParcelas);
-    FClient.Orm.Add(Financeiro, True);
+      Financeiro.dt_movimento := StrToDate(Parcela.DataParcelas);
+      FClient.Orm.Add(Financeiro, True);
+    finally
+      Financeiro.Free;
+    end;
 
   end;
   //Siafw -> sem coisas da reforma
