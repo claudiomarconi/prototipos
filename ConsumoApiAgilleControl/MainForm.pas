@@ -280,6 +280,8 @@ type
     { Private declarations }
     FClient: TRestHttpClient;
     FModel: TSqlModel;
+    procedure ConectarCliente;
+    function AutenticarCliente: Boolean;
     function ProcessarNotaFiscal(const AVendaAgille: TVendaAgille): TOrmNotaFiscal;
     procedure ProcessarItensNotaFiscal(const AVendaAgille: TVendaAgille;
       ANotaFiscal: TOrmNotaFiscal);
@@ -322,7 +324,7 @@ begin
 
 
 
-  if FClient.SetUser('cmarcony', 'synopse') then
+  if AutenticarCliente then
   begin
     mtProdutos.Active := false;
     mtProdutos.Active := true;
@@ -380,8 +382,22 @@ begin
   GravarNotaFiscal(VendaAgille);
 end;
 
+function TfrmMain.AutenticarCliente: Boolean;
+begin
+  ConectarCliente;
+  Result := FClient.SetUser('cmarcony', 'synopse');
+end;
+
 procedure TfrmMain.Button3Click(Sender: TObject);
 begin
+  ConectarCliente;
+end;
+
+procedure TfrmMain.ConectarCliente;
+begin
+  if Assigned(FClient) then
+    Exit;
+
   FModel := DataModel;
 
   FClient := TRestHttpClient.Create('notei5', '8888',  FModel);
@@ -391,19 +407,25 @@ procedure TfrmMain.GravarNotaFiscal(const AVendaAgille: TVendaAgille);
 var
   NotaFiscal: TOrmNotaFiscal;
 begin
+  NotaFiscal := nil;
 
-  NotaFiscal := ProcessarNotaFiscal(AVendaAgille);
+  if not AutenticarCliente then
+    raise Exception.Create('Falha ao autenticar no servidor');
 
-  FClient.Orm.TransactionBegin(TOrmNotaFiscal);
+  if not FClient.Orm.TransactionBegin(TOrmNotaFiscal) then
+    raise Exception.Create('Falha ao iniciar transacao');
   try
-    ProcessarItensNotaFiscal(AVendaAgille, NotaFiscal);
-    ProcessarParcelasNotaFiscal(AVendaAgille);
-    FClient.Orm.Commit;
-  except
-    on E: Exception do
-    begin
+    try
+      NotaFiscal := ProcessarNotaFiscal(AVendaAgille);
+      ProcessarItensNotaFiscal(AVendaAgille, NotaFiscal);
+      ProcessarParcelasNotaFiscal(AVendaAgille);
+      FClient.Orm.Commit;
+    except
       FClient.Orm.RollBack;
+      raise;
     end;
+  finally
+    NotaFiscal.Free;
   end;
 end;
 
@@ -427,7 +449,7 @@ begin
       Item.vl_unitario := ProdutoAgille.Vlr_Unitario;
       Item.qt_movimento := ProdutoAgille.Qtde;
       item.vl_desconto := ProdutoAgille.Vlr_Desconto;
-      item.dt_movimento := Iso8601ToDateTime(ProdutoAgille.DtHora_Venda); // StrToDate(
+      item.dt_movimento := StrToDateTime(ProdutoAgille.DtHora_Venda);
       Item.tp_movimento := 'S';
       Item.qt_movimento := ProdutoAgille.Qtde;
 
@@ -453,7 +475,7 @@ begin
 
   oEmpresa      := TOrmRefHelper.Ref<TOrmEmpresa>(2, EmpresaAF);
   oGrupoEmpresa := TOrmRefHelper.Ref<TOrmGrupoEmpresa>(2, GrupoEmpresaAF);
-  oClient       := TOrmRefHelper.Ref<TOrmCliente>(AVendaAgille.Cod_Cliente, GrupoEmpresaAF);
+  oClient       := TOrmRefHelper.Ref<TOrmCliente>(AVendaAgille.Cod_Cliente, ClienteAF);
 
   //AVendaAgille.Cod_Entidade
   //AVendaAgille.Cod_Pedido
