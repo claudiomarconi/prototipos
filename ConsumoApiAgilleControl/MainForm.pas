@@ -44,7 +44,6 @@ uses
   , mormot.core.json
   , mormot.core.text
   , mormot.core.data
-  , mormot.core.datetime
 
   , NotaFiscalOrm
 
@@ -392,10 +391,10 @@ var
   NotaFiscal: TOrmNotaFiscal;
 begin
 
-  NotaFiscal := ProcessarNotaFiscal(AVendaAgille);
-
-  FClient.Orm.TransactionBegin(TOrmNotaFiscal);
+  if not FClient.Orm.TransactionBegin(TOrmNotaFiscal) then
+    raise Exception.Create('Nao foi possivel iniciar transacao para gravar venda.');
   try
+    NotaFiscal := ProcessarNotaFiscal(AVendaAgille);
     ProcessarItensNotaFiscal(AVendaAgille, NotaFiscal);
     ProcessarParcelasNotaFiscal(AVendaAgille);
     FClient.Orm.Commit;
@@ -403,6 +402,7 @@ begin
     on E: Exception do
     begin
       FClient.Orm.RollBack;
+      raise;
     end;
   end;
 end;
@@ -427,7 +427,7 @@ begin
       Item.vl_unitario := ProdutoAgille.Vlr_Unitario;
       Item.qt_movimento := ProdutoAgille.Qtde;
       item.vl_desconto := ProdutoAgille.Vlr_Desconto;
-      item.dt_movimento := Iso8601ToDateTime(ProdutoAgille.DtHora_Venda); // StrToDate(
+      item.dt_movimento := StrToDateTime(ProdutoAgille.DtHora_Venda);
       Item.tp_movimento := 'S';
       Item.qt_movimento := ProdutoAgille.Qtde;
 
@@ -453,7 +453,7 @@ begin
 
   oEmpresa      := TOrmRefHelper.Ref<TOrmEmpresa>(2, EmpresaAF);
   oGrupoEmpresa := TOrmRefHelper.Ref<TOrmGrupoEmpresa>(2, GrupoEmpresaAF);
-  oClient       := TOrmRefHelper.Ref<TOrmCliente>(AVendaAgille.Cod_Cliente, GrupoEmpresaAF);
+  oClient       := TOrmRefHelper.Ref<TOrmCliente>(AVendaAgille.Cod_Cliente, ClienteAF);
 
   //AVendaAgille.Cod_Entidade
   //AVendaAgille.Cod_Pedido
