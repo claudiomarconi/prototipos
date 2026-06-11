@@ -26,7 +26,7 @@ class MainFormRegressionTests(unittest.TestCase):
     def test_invoice_insert_is_inside_rollback_scope(self) -> None:
         body = procedure_body(read_mainform(), "GravarNotaFiscal")
 
-        transaction_pos = body.index("FClient.Orm.TransactionBegin(TOrmNotaFiscal);")
+        transaction_pos = body.index("FClient.Orm.TransactionBegin(TOrmNotaFiscal)")
         invoice_pos = body.index("NotaFiscal := ProcessarNotaFiscal(AVendaAgille);")
         commit_pos = body.index("FClient.Orm.Commit;")
 
