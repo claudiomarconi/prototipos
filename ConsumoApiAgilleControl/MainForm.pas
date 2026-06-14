@@ -313,6 +313,35 @@ uses
   helper.ormref;
 {$R *.dfm}
 
+function AgilleDateTimeToDateTime(const AValue: RawUtf8): TDateTime;
+var
+  DateText: string;
+  DateFormat: TFormatSettings;
+begin
+  DateText := Trim(string(AValue));
+  if DateText = '' then
+    raise EConvertError.Create('Data Agille vazia');
+
+  DateFormat := TFormatSettings.Create;
+  DateFormat.DateSeparator := '/';
+  DateFormat.TimeSeparator := ':';
+  DateFormat.ShortDateFormat := 'dd/mm/yyyy';
+  DateFormat.ShortTimeFormat := 'hh:nn';
+  DateFormat.LongTimeFormat := 'hh:nn:ss';
+
+  if TryStrToDateTime(DateText, Result, DateFormat) then
+    Exit;
+
+  if TryStrToDate(DateText, Result, DateFormat) then
+    Exit;
+
+  try
+    Result := Iso8601ToDateTime(AValue);
+  except
+    raise EConvertError.CreateFmt('Data Agille invalida: %s', [DateText]);
+  end;
+end;
+
 procedure TfrmMain.Button1Click(Sender: TObject);
 var
   TableProduto: TOrmTable;
@@ -391,19 +420,21 @@ procedure TfrmMain.GravarNotaFiscal(const AVendaAgille: TVendaAgille);
 var
   NotaFiscal: TOrmNotaFiscal;
 begin
-
-  NotaFiscal := ProcessarNotaFiscal(AVendaAgille);
+  NotaFiscal := nil;
 
   FClient.Orm.TransactionBegin(TOrmNotaFiscal);
   try
-    ProcessarItensNotaFiscal(AVendaAgille, NotaFiscal);
-    ProcessarParcelasNotaFiscal(AVendaAgille);
-    FClient.Orm.Commit;
-  except
-    on E: Exception do
-    begin
+    try
+      NotaFiscal := ProcessarNotaFiscal(AVendaAgille);
+      ProcessarItensNotaFiscal(AVendaAgille, NotaFiscal);
+      ProcessarParcelasNotaFiscal(AVendaAgille);
+      FClient.Orm.Commit;
+    except
       FClient.Orm.RollBack;
+      raise;
     end;
+  finally
+    NotaFiscal.Free;
   end;
 end;
 
@@ -427,7 +458,7 @@ begin
       Item.vl_unitario := ProdutoAgille.Vlr_Unitario;
       Item.qt_movimento := ProdutoAgille.Qtde;
       item.vl_desconto := ProdutoAgille.Vlr_Desconto;
-      item.dt_movimento := Iso8601ToDateTime(ProdutoAgille.DtHora_Venda); // StrToDate(
+      item.dt_movimento := AgilleDateTimeToDateTime(ProdutoAgille.DtHora_Venda);
       Item.tp_movimento := 'S';
       Item.qt_movimento := ProdutoAgille.Qtde;
 
@@ -453,7 +484,7 @@ begin
 
   oEmpresa      := TOrmRefHelper.Ref<TOrmEmpresa>(2, EmpresaAF);
   oGrupoEmpresa := TOrmRefHelper.Ref<TOrmGrupoEmpresa>(2, GrupoEmpresaAF);
-  oClient       := TOrmRefHelper.Ref<TOrmCliente>(AVendaAgille.Cod_Cliente, GrupoEmpresaAF);
+  oClient       := TOrmRefHelper.Ref<TOrmCliente>(AVendaAgille.Cod_Cliente, ClienteAF);
 
   //AVendaAgille.Cod_Entidade
   //AVendaAgille.Cod_Pedido
@@ -468,7 +499,7 @@ begin
   NotaFiscal.nu_nota := Utf8ToInteger(AVendaAgille.Nu_NF);
   //AVendaAgille.Tipo_Classificacao
   //AVendaAgille.Tipo_Classificacao_Nome
-  NotaFiscal.dt_entrada_saida := StrToDate(AVendaAgille.Dt_Venda); // StrToDate(
+  NotaFiscal.dt_entrada_saida := AgilleDateTimeToDateTime(AVendaAgille.Dt_Venda);
   //AVendaAgille.Vlr_TxEntrega
   //AVendaAgille.Vlr_Couvert
   NotaFiscal.vl_desconto := AVendaAgille.Vlr_Desconto;
@@ -496,15 +527,19 @@ begin
   begin
     Financeiro := TOrmMoviFinanceiro.Create;
 
-    oFormaFinanceira      := TOrmRefHelper.Ref<TOrmFormaFinanceira>(Parcela.Cod_Recebimento, FormaFinanceiraAF);
+    try
+      oFormaFinanceira      := TOrmRefHelper.Ref<TOrmFormaFinanceira>(Parcela.Cod_Recebimento, FormaFinanceiraAF);
 
-    Financeiro.id_formaFinanceira := oFormaFinanceira.AsTOrm;
-    Financeiro.vl_movimento := Parcela.Valor;
-    Financeiro.nu_parcela := Parcela.NumeroParcelas;
-    Financeiro.ds_historico := Parcela.Descricao;
+      Financeiro.id_formaFinanceira := oFormaFinanceira.AsTOrm;
+      Financeiro.vl_movimento := Parcela.Valor;
+      Financeiro.nu_parcela := Parcela.NumeroParcelas;
+      Financeiro.ds_historico := Parcela.Descricao;
 
-    Financeiro.dt_movimento := StrToDate(Parcela.DataParcelas);
-    FClient.Orm.Add(Financeiro, True);
+      Financeiro.dt_movimento := AgilleDateTimeToDateTime(Parcela.DataParcelas);
+      FClient.Orm.Add(Financeiro, True);
+    finally
+      Financeiro.Free;
+    end;
 
   end;
   //Siafw -> sem coisas da reforma
