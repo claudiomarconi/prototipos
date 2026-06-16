@@ -28,7 +28,7 @@ class MainFormSaveFlowTests(unittest.TestCase):
             "procedure TfrmMain.GravarNotaFiscal(const AVendaAgille: TVendaAgille);",
         )
 
-        transaction_index = body.index("FClient.Orm.TransactionBegin(TOrmNotaFiscal);")
+        transaction_index = body.index("FClient.Orm.TransactionBegin(TOrmNotaFiscal)")
         note_index = body.index("NotaFiscal := ProcessarNotaFiscal(AVendaAgille);")
 
         self.assertLess(transaction_index, note_index)
