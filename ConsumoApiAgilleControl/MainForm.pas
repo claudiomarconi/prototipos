@@ -392,10 +392,10 @@ var
   NotaFiscal: TOrmNotaFiscal;
 begin
 
-  NotaFiscal := ProcessarNotaFiscal(AVendaAgille);
-
+  NotaFiscal := nil;
   FClient.Orm.TransactionBegin(TOrmNotaFiscal);
   try
+    NotaFiscal := ProcessarNotaFiscal(AVendaAgille);
     ProcessarItensNotaFiscal(AVendaAgille, NotaFiscal);
     ProcessarParcelasNotaFiscal(AVendaAgille);
     FClient.Orm.Commit;
@@ -403,7 +403,10 @@ begin
     on E: Exception do
     begin
       FClient.Orm.RollBack;
+      raise;
     end;
+  finally
+    NotaFiscal.Free;
   end;
 end;
 
@@ -453,7 +456,7 @@ begin
 
   oEmpresa      := TOrmRefHelper.Ref<TOrmEmpresa>(2, EmpresaAF);
   oGrupoEmpresa := TOrmRefHelper.Ref<TOrmGrupoEmpresa>(2, GrupoEmpresaAF);
-  oClient       := TOrmRefHelper.Ref<TOrmCliente>(AVendaAgille.Cod_Cliente, GrupoEmpresaAF);
+  oClient       := TOrmRefHelper.Ref<TOrmCliente>(AVendaAgille.Cod_Cliente, ClienteAF);
 
   //AVendaAgille.Cod_Entidade
   //AVendaAgille.Cod_Pedido
