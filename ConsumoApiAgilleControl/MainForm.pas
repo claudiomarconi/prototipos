@@ -280,6 +280,7 @@ type
     { Private declarations }
     FClient: TRestHttpClient;
     FModel: TSqlModel;
+    procedure EnsureClientAuthenticated;
     function ProcessarNotaFiscal(const AVendaAgille: TVendaAgille): TOrmNotaFiscal;
     procedure ProcessarItensNotaFiscal(const AVendaAgille: TVendaAgille;
       ANotaFiscal: TOrmNotaFiscal);
@@ -313,6 +314,18 @@ uses
   helper.ormref;
 {$R *.dfm}
 
+procedure TfrmMain.EnsureClientAuthenticated;
+begin
+  if not Assigned(FClient) then
+  begin
+    FModel := DataModel;
+    FClient := TRestHttpClient.Create('notei5', '8888', FModel);
+  end;
+
+  if not FClient.SetUser('cmarcony', 'synopse') then
+    raise Exception.Create('Falha ao autenticar no servidor');
+end;
+
 procedure TfrmMain.Button1Click(Sender: TObject);
 var
   TableProduto: TOrmTable;
@@ -320,51 +333,47 @@ var
   flagPDV,IdGrupoEmpresa: Integer;
 begin
 
+  EnsureClientAuthenticated;
+  mtProdutos.Active := false;
+  mtProdutos.Active := true;
 
+  SqlSelect := 'SELECT produto.RowID id, ds_produto, produto.ds_descricao, co_ean, co_ncm, '
+    + 'tx_icms_padrao, co_cest, vl_venda, vl_compra, nu_cfop, co_cst '
+    + 'FROM produto '
+    + 'LEFT JOIN grupoImposto ON grupoimposto.RowID = produto.id_grupo_imposto '
+    + 'LEFT JOIN cfop ON cfop.RowID = grupoimposto.id_cfop '
+    + 'LEFT JOIN cst ON cst.RowID  = grupoimposto.id_cst '
+    + 'WHERE fl_usa_pdv = ? and produto.id_grupo_empresa = ? ';
 
-  if FClient.SetUser('cmarcony', 'synopse') then
-  begin
-    mtProdutos.Active := false;
-    mtProdutos.Active := true;
+  flagPDV := 1;
+  IdGrupoEmpresa := 3;
 
-    SqlSelect := 'SELECT produto.RowID id, ds_produto, produto.ds_descricao, co_ean, co_ncm, '
-      + 'tx_icms_padrao, co_cest, vl_venda, vl_compra, nu_cfop, co_cst '
-      + 'FROM produto '
-      + 'LEFT JOIN grupoImposto ON grupoimposto.RowID = produto.id_grupo_imposto '
-      + 'LEFT JOIN cfop ON cfop.RowID = grupoimposto.id_cfop '
-      + 'LEFT JOIN cst ON cst.RowID  = grupoimposto.id_cst '
-      + 'WHERE fl_usa_pdv = ? and produto.id_grupo_empresa = ? ';
+  TableProduto := FClient.ExecuteList([], FormatSql(SqlSelect, [], [flagPDV, IdGrupoEmpresa]));
+  try
+    while TableProduto.Step do
+    begin
+      mtProdutos.Insert;
 
-    flagPDV := 1;
-    IdGrupoEmpresa := 3;
+      mtProdutos.FieldByName('id').AsInteger := TableProduto.FieldAsInteger('id');
 
-    TableProduto := FClient.ExecuteList([], FormatSql(SqlSelect, [], [flagPDV, IdGrupoEmpresa]));
-    try
-      while TableProduto.Step do
-      begin
-        mtProdutos.Insert;
+      mtProdutos.FieldByName('ds_produto').AsString := TableProduto.FieldAsString('ds_produto');
+      mtProdutos.FieldByName('ds_descricao').AsString := TableProduto.FieldAsString('ds_descricao');
+      mtProdutos.FieldByName('co_ean').AsString := TableProduto.FieldAsString('co_ean');
+      mtProdutos.FieldByName('co_ncm').AsString := TableProduto.FieldAsString('co_ncm');
+      mtProdutos.FieldByName('co_cest').AsString := TableProduto.FieldAsString('co_cest');
 
-        mtProdutos.FieldByName('id').AsInteger := TableProduto.FieldAsInteger('id');
+      mtProdutos.FieldByName('vl_venda').AsFloat := TableProduto.FieldAsFloat('vl_venda');
+      mtProdutos.FieldByName('vl_compra').AsFloat := TableProduto.FieldAsFloat('vl_compra');
 
-        mtProdutos.FieldByName('ds_produto').AsString := TableProduto.FieldAsString('ds_produto');
-        mtProdutos.FieldByName('ds_descricao').AsString := TableProduto.FieldAsString('ds_descricao');
-        mtProdutos.FieldByName('co_ean').AsString := TableProduto.FieldAsString('co_ean');
-        mtProdutos.FieldByName('co_ncm').AsString := TableProduto.FieldAsString('co_ncm');
-        mtProdutos.FieldByName('co_cest').AsString := TableProduto.FieldAsString('co_cest');
+      mtProdutos.FieldByName('nu_cfop').AsString := TableProduto.FieldAsString('nu_cfop');
+      mtProdutos.FieldByName('co_cst').AsString := TableProduto.FieldAsString('co_cst');
 
-        mtProdutos.FieldByName('vl_venda').AsFloat := TableProduto.FieldAsFloat('vl_venda');
-        mtProdutos.FieldByName('vl_compra').AsFloat := TableProduto.FieldAsFloat('vl_compra');
+      mtProdutos.FieldByName('tx_icms_padrao').AsFloat := TableProduto.FieldAsFloat('tx_icms_padrao');
 
-        mtProdutos.FieldByName('nu_cfop').AsString := TableProduto.FieldAsString('nu_cfop');
-        mtProdutos.FieldByName('co_cst').AsString := TableProduto.FieldAsString('co_cst');
-
-        mtProdutos.FieldByName('tx_icms_padrao').AsFloat := TableProduto.FieldAsFloat('tx_icms_padrao');
-
-        mtProdutos.Post;
-      end;
-    finally
-      TableProduto.Free;
+      mtProdutos.Post;
     end;
+  finally
+    TableProduto.Free;
   end;
 
 end;
@@ -374,6 +383,7 @@ var
   Content: RawByteString;
   VendaAgille: TVendaAgille;
 begin
+  EnsureClientAuthenticated;
   Content := StringFromFile('..\..\venda-agille.json');
   RecordLoadJsonInPlace(VendaAgille, pointer(Content), TypeInfo(TVendaAgille));
 
@@ -382,9 +392,7 @@ end;
 
 procedure TfrmMain.Button3Click(Sender: TObject);
 begin
-  FModel := DataModel;
-
-  FClient := TRestHttpClient.Create('notei5', '8888',  FModel);
+  EnsureClientAuthenticated;
 end;
 
 procedure TfrmMain.GravarNotaFiscal(const AVendaAgille: TVendaAgille);
