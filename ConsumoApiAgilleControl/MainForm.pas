@@ -427,7 +427,8 @@ begin
       Item.vl_unitario := ProdutoAgille.Vlr_Unitario;
       Item.qt_movimento := ProdutoAgille.Qtde;
       item.vl_desconto := ProdutoAgille.Vlr_Desconto;
-      item.dt_movimento := Iso8601ToDateTime(ProdutoAgille.DtHora_Venda); // StrToDate(
+      // Agille payloads use Brazilian datetime (e.g. 01/09/2025 11:42), not ISO-8601.
+      item.dt_movimento := StrToDateTime(ProdutoAgille.DtHora_Venda);
       Item.tp_movimento := 'S';
       Item.qt_movimento := ProdutoAgille.Qtde;
 
