@@ -424,6 +424,8 @@ begin
     try
       Item.ds_produto := ProdutoAgille.Descricao;
       Item.id_nota_fiscal := ANotaFiscal.AsTOrm;
+      // Ref above is required: without this FK every imported line loses its product link.
+      Item.id_produto := oProduto.AsTOrm;
       Item.vl_unitario := ProdutoAgille.Vlr_Unitario;
       Item.qt_movimento := ProdutoAgille.Qtde;
       item.vl_desconto := ProdutoAgille.Vlr_Desconto;
